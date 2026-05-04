@@ -6,9 +6,10 @@ const steps = [
   { id: "step-3", short: "What notes add" },
   { id: "step-4", short: "Three note encodings" },
   { id: "step-5", short: "Matching and weighting" },
-  { id: "step-6", short: "Reading effect estimates" },
-  { id: "step-7", short: "Semi-synthetic truth test" },
-  { id: "step-8", short: "Conclusion" },
+  { id: "step-6", short: "M5 tie-break" },
+  { id: "step-7", short: "Reading effect estimates" },
+  { id: "step-8", short: "Semi-synthetic truth test" },
+  { id: "step-9", short: "Conclusion" },
 ];
 
 const comparePatients = {
@@ -116,6 +117,18 @@ const methodViews = {
   },
 };
 
+const tfidfExample = {
+  note:
+    "baseline functional decline family reports confusion likely pulmonary source code status changed during hospitalization",
+  corpusSize: 4,
+  terms: [
+    { term: "family", tf: 1, df: 1, why: "Rare across notes, so it gets a stronger lift." },
+    { term: "confusion", tf: 1, df: 2, why: "Present here and somewhat specific, so it stays useful." },
+    { term: "pulmonary", tf: 1, df: 3, why: "Commoner across notes, so it gets a smaller lift." },
+    { term: "status", tf: 1, df: 2, why: "Moderately common, so it lands in the middle." },
+  ],
+};
+
 const matchingData = {
   treated: [
     { id: "T1", severity: 90, ps: 0.82, outcome: "died" },
@@ -138,6 +151,59 @@ const weightingData = [
   { id: "E", treated: 0, ps: 0.2, weight: 0.8, outcome: "survived" },
   { id: "F", treated: 0, ps: 0.1, weight: 0.5, outcome: "survived" },
 ];
+
+const hammingExample = {
+  treated: {
+    id: "T2",
+    ps: 0.71,
+    note: "Structured matching says this treated patient has several plausible controls.",
+    features: {
+      functionalStatus: "fully dependent",
+      mentalStatus: "confused",
+      codeStatus: "DNR",
+      infectionSource: "pulmonary",
+      substanceUse: "none",
+    },
+  },
+  candidates: [
+    {
+      id: "C7",
+      ps: 0.69,
+      structuredGap: "close PS candidate",
+      features: {
+        functionalStatus: "fully dependent",
+        mentalStatus: "confused",
+        codeStatus: "full code",
+        infectionSource: "pulmonary",
+        substanceUse: "none",
+      },
+    },
+    {
+      id: "C8",
+      ps: 0.7,
+      structuredGap: "close PS candidate",
+      features: {
+        functionalStatus: "partially dependent",
+        mentalStatus: "alert",
+        codeStatus: "full code",
+        infectionSource: "pulmonary",
+        substanceUse: "none",
+      },
+    },
+    {
+      id: "C9",
+      ps: 0.68,
+      structuredGap: "close PS candidate",
+      features: {
+        functionalStatus: "fully dependent",
+        mentalStatus: "confused",
+        codeStatus: "DNR",
+        infectionSource: "pulmonary",
+        substanceUse: "none",
+      },
+    },
+  ],
+};
 
 const paperResults = [
   { method: "M1", label: "Structured only", expandedLabelLines: ["Structured only"], effect: 0.055, low: 0.03, high: 0.08, tone: "rust" },
@@ -566,7 +632,11 @@ function RevealStep() {
 
 function MethodStep() {
   const [method, setMethod] = useState("tfidf");
+  const [selectedTfidfTerm, setSelectedTfidfTerm] = useState("family");
   const view = methodViews[method];
+  const tfidfTerm = tfidfExample.terms.find((item) => item.term === selectedTfidfTerm) || tfidfExample.terms[0];
+  const tfidfIdf = Math.log((1 + tfidfExample.corpusSize) / (1 + tfidfTerm.df)) + 1;
+  const tfidfRaw = tfidfTerm.tf * tfidfIdf;
   return (
     <>
       <div className="method-gallery">
@@ -593,19 +663,80 @@ function MethodStep() {
             <p>{view.body}</p>
           </div>
           {view.visualType === "bars" && (
-            <div className="sheet-grid">
-              {[
-                ["bedbound", "0.74"],
-                ["DNR", "0.63"],
-                ["encephalopathy", "0.52"],
-                ["nursing facility", "0.44"],
-              ].map(([label, value]) => (
-                <div className="sheet-chip" key={label}>
-                  <span>{label}</span>
-                  <strong>{value}</strong>
+            <>
+              <div className="sheet-grid">
+                {[
+                  ["bedbound", "0.74"],
+                  ["DNR", "0.63"],
+                  ["encephalopathy", "0.52"],
+                  ["nursing facility", "0.44"],
+                ].map(([label, value]) => (
+                  <div className="sheet-chip" key={label}>
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="weighting-calculator">
+                <div>
+                  <h3>Worked example, how a TF-IDF value is computed</h3>
+                  <p>
+                    This walkthrough does not ship raw MIMIC notes, so the example below uses the exact teaching note
+                    snippet already shown on the page and computes a real TF-IDF number on a tiny four-note corpus.
+                  </p>
                 </div>
-              ))}
-            </div>
+                <article className="sheet-chip">
+                  <span>Example note</span>
+                  <strong style={{ fontSize: "1rem", lineHeight: "1.5", fontWeight: 600 }}>
+                    {tfidfExample.note}
+                  </strong>
+                </article>
+                <div className="segmented-control segmented-control--wrap" role="tablist" aria-label="TF-IDF example term">
+                  {tfidfExample.terms.map((item) => (
+                    <button
+                      className={selectedTfidfTerm === item.term ? "is-active" : ""}
+                      key={item.term}
+                      onClick={() => setSelectedTfidfTerm(item.term)}
+                      type="button"
+                    >
+                      {item.term}
+                    </button>
+                  ))}
+                </div>
+                <div className="formula-stack">
+                  <article className="formula-card">
+                    <span>Term frequency</span>
+                    <strong>tf = {tfidfTerm.tf}</strong>
+                  </article>
+                  <article className="formula-card">
+                    <span>Document frequency</span>
+                    <strong>df = {tfidfTerm.df} / {tfidfExample.corpusSize}</strong>
+                  </article>
+                  <article className="formula-card">
+                    <span>IDF formula</span>
+                    <strong>ln((1 + N) / (1 + df)) + 1</strong>
+                  </article>
+                  <article className="formula-card">
+                    <span>IDF value</span>
+                    <strong>{tfidfIdf.toFixed(2)}</strong>
+                  </article>
+                  <article className="formula-card">
+                    <span>Raw TF-IDF</span>
+                    <strong>{tfidfRaw.toFixed(2)}</strong>
+                  </article>
+                </div>
+                <p>
+                  For <strong>{tfidfTerm.term}</strong>, the calculation is:
+                  {" "}
+                  <strong>{tfidfTerm.tf} × {tfidfIdf.toFixed(2)} = {tfidfRaw.toFixed(2)}</strong>.
+                </p>
+                <p>
+                  Interpretation: TF-IDF values are <strong>not probabilities</strong>. A larger value means the term is
+                  more characteristic of this note relative to the rest of the corpus. Here,{" "}
+                  <strong>{tfidfTerm.term}</strong> gets this score because it appears in this note and {tfidfTerm.why}
+                </p>
+              </div>
+            </>
           )}
           {view.visualType === "cloud" && (
             <div className="sheet-grid">
@@ -822,6 +953,165 @@ function AdjustmentStep() {
               </p>
             </>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HammingTieBreakStep() {
+  const [candidateId, setCandidateId] = useState(hammingExample.candidates[0].id);
+  const featureLabels = [
+    ["functionalStatus", "Functional status"],
+    ["mentalStatus", "Mental status"],
+    ["codeStatus", "Code status"],
+    ["infectionSource", "Infection source"],
+    ["substanceUse", "Substance use"],
+  ];
+
+  const candidatesWithDistance = hammingExample.candidates.map((candidate) => {
+    const mismatches = featureLabels.filter(
+      ([key]) => candidate.features[key] !== hammingExample.treated.features[key]
+    );
+    return {
+      ...candidate,
+      mismatches,
+      distance: mismatches.length,
+    };
+  });
+
+  const bestDistance = Math.min(...candidatesWithDistance.map((candidate) => candidate.distance));
+  const selectedCandidate = candidatesWithDistance.find((candidate) => candidate.id === candidateId);
+  const bestCandidate = candidatesWithDistance.find((candidate) => candidate.distance === bestDistance);
+
+  return (
+    <div className="two-up two-up--dense">
+      <div className="prose">
+        <p>
+          M5 is not a brand-new causal estimator. It starts with the same structured matching idea: first find a small
+          pool of untreated patients whose <strong>propensity scores are already close</strong>.
+        </p>
+        <p>
+          Then it uses the five extracted note covariates as a tie-break. <strong>Hamming distance</strong> is simply
+          the number of note-category mismatches between the treated patient and each candidate control.
+        </p>
+        <div className="formula-stack">
+          <article className="formula-card">
+            <span>Structured stage</span>
+            <strong>Keep only close propensity-score controls</strong>
+          </article>
+          <article className="formula-card">
+            <span>Hamming distance</span>
+            <strong>Count how many extracted categories disagree</strong>
+          </article>
+          <article className="formula-card">
+            <span>M5 tie-break</span>
+            <strong>Pick the control with the smallest mismatch count</strong>
+          </article>
+        </div>
+        <p>
+          Here, treated patient <strong>{hammingExample.treated.id}</strong> has propensity{" "}
+          <strong>{hammingExample.treated.ps.toFixed(2)}</strong>. All three controls below are close enough on
+          structured propensity score to remain candidates. M5 then asks which one tells the most similar note-based
+          patient story.
+        </p>
+        <div className="viz-card hamming-summary-card">
+          <strong>How to read the number</strong>
+          <p>
+            Distance <strong>0</strong> means all five note covariates match. Distance <strong>1</strong> means one
+            mismatch. Distance <strong>3</strong> means the control may look numerically close, but the note-derived
+            baseline picture is drifting away.
+          </p>
+        </div>
+      </div>
+      <div className="viz-card">
+        <div className="segmented-control segmented-control--wrap" role="tablist" aria-label="Candidate controls for M5 tie-break">
+          {candidatesWithDistance.map((candidate) => (
+            <button
+              className={candidate.id === candidateId ? "is-active" : ""}
+              onClick={() => setCandidateId(candidate.id)}
+              type="button"
+              key={candidate.id}
+            >
+              {candidate.id}: {candidate.distance} mismatch{candidate.distance === 1 ? "" : "es"}
+            </button>
+          ))}
+        </div>
+        <div className="hamming-lab">
+          <div className="hamming-lab__summary">
+            {candidatesWithDistance.map((candidate) => (
+              <article
+                className={`hamming-score-card${candidate.distance === bestDistance ? " is-best" : ""}${
+                  candidate.id === candidateId ? " is-selected" : ""
+                }`}
+                key={candidate.id}
+              >
+                <span>{candidate.id}</span>
+                <strong>{candidate.distance}</strong>
+                <small>{candidate.ps.toFixed(2)} PS</small>
+              </article>
+            ))}
+          </div>
+          <div className="hamming-lab__columns">
+            <article className="hamming-profile">
+              <span className="hamming-profile__eyebrow">treated reference</span>
+              <h3>
+                {hammingExample.treated.id} <small>propensity {hammingExample.treated.ps.toFixed(2)}</small>
+              </h3>
+              <p>{hammingExample.treated.note}</p>
+              <div className="hamming-pill-grid">
+                {featureLabels.map(([key, label]) => (
+                  <div className="hamming-pill is-match" key={key}>
+                    <span>{label}</span>
+                    <strong>{hammingExample.treated.features[key]}</strong>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="hamming-profile">
+              <span className="hamming-profile__eyebrow">candidate control</span>
+              <h3>
+                {selectedCandidate.id} <small>propensity {selectedCandidate.ps.toFixed(2)}</small>
+              </h3>
+              <p>
+                Structured stage says this control is close. The tie-break checks whether the extracted note categories
+                line up with the treated patient.
+              </p>
+              <div className="hamming-pill-grid">
+                {featureLabels.map(([key, label]) => {
+                  const mismatch = selectedCandidate.features[key] !== hammingExample.treated.features[key];
+                  return (
+                    <div className={`hamming-pill${mismatch ? " is-mismatch" : " is-match"}`} key={key}>
+                      <span>{label}</span>
+                      <strong>{selectedCandidate.features[key]}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
+          </div>
+          <div className="hamming-table" role="table" aria-label="Hamming mismatch comparison">
+            {featureLabels.map(([key, label]) => {
+              const mismatch = selectedCandidate.features[key] !== hammingExample.treated.features[key];
+              return (
+                <div className={`hamming-row${mismatch ? " is-mismatch" : " is-match"}`} key={key}>
+                  <span>{label}</span>
+                  <strong>{hammingExample.treated.features[key]}</strong>
+                  <strong>{selectedCandidate.features[key]}</strong>
+                  <em>{mismatch ? "different" : "same"}</em>
+                </div>
+              );
+            })}
+          </div>
+          <p className="viz-caption">
+            Hamming distance for <strong>{selectedCandidate.id}</strong> is <strong>{selectedCandidate.distance}</strong>.
+            {selectedCandidate.distance === 0
+              ? " All five extracted covariates match, so this control wins the tie-break."
+              : ` ${selectedCandidate.distance} of the five extracted covariates differ.`}{" "}
+            {selectedCandidate.distance === bestDistance
+              ? `M5 would keep ${selectedCandidate.id} ahead of the other close controls.`
+              : `M5 would prefer ${bestCandidate.id}, which has the smaller distance of ${bestDistance}.`}
+          </p>
         </div>
       </div>
     </div>
@@ -1121,10 +1411,30 @@ export default function App() {
 
           <StepShell
             id="step-6"
-            kicker="Step 15"
-            title="Read the treatment-effect table as a family of adjusted stories"
+            kicker="Step 13, zoomed in"
+            title="M5 refines structured matches with a Hamming-distance tie-break"
             visible={isVisible("step-6")}
             current={activeStep === "step-6"}
+          >
+            <StepLedger
+              have={{
+                title: "A pool of controls already close on structured propensity score",
+                body: "The first-stage matching has already narrowed the untreated side to patients who look numerically plausible.",
+              }}
+              adds={{
+                title: "A note-level tie-break",
+                body: "M5 counts mismatches across the five extracted note covariates and keeps the smallest Hamming distance.",
+              }}
+            />
+            <HammingTieBreakStep />
+          </StepShell>
+
+          <StepShell
+            id="step-7"
+            kicker="Step 15"
+            title="Read the treatment-effect table as a family of adjusted stories"
+            visible={isVisible("step-7")}
+            current={activeStep === "step-7"}
           >
             <StepLedger
               have={{
@@ -1159,6 +1469,65 @@ export default function App() {
                   <strong> 5.5pp</strong>. So `M1 = 5.5pp` means the treated group&apos;s adjusted 28-day mortality was
                   5.5 percentage points higher than the untreated group&apos;s.
                 </p>
+                <div className="weighting-calculator">
+                  <div>
+                    <h3>Why authors can prefer M4 even though M4 has more pp than M2</h3>
+                    <p>
+                      Because the paper is not ranking methods by <strong>smallest effect size</strong>. It is ranking
+                      them by <strong>how believable the adjusted comparison is</strong>. A method can output a tiny
+                      number simply because it adjusted badly or over-corrected. The authors trust methods that make
+                      treated and untreated groups look more alike on baseline characteristics and then perform better
+                      in semi-synthetic tests where the true answer is known.
+                    </p>
+                  </div>
+                  <div className="formula-stack">
+                    <article className="formula-card">
+                      <span>M2 in the paper</span>
+                      <strong>+0.8pp</strong>
+                    </article>
+                    <article className="formula-card">
+                      <span>M4 in the paper</span>
+                      <strong>+2.7pp</strong>
+                    </article>
+                    <article className="formula-card">
+                      <span>What the authors care about</span>
+                      <strong>Balance and bias, not smallest pp</strong>
+                    </article>
+                  </div>
+                  <p>
+                    In plain language: a tiny `pp` can look comforting, but if treated and untreated patients are still
+                    not comparable, that tiny number is not more trustworthy. The paper argues that `M4` does a better
+                    job aligning the groups before computing the effect.
+                  </p>
+                  <div className="sheet-grid">
+                    <article className="sheet-chip">
+                      <span>Real-data balance, M4</span>
+                      <strong>mean SMD 0.014</strong>
+                    </article>
+                    <article className="sheet-chip">
+                      <span>Worst remaining imbalance, M4</span>
+                      <strong>max SMD 0.042</strong>
+                    </article>
+                    <article className="sheet-chip">
+                      <span>Balanced variables, M4</span>
+                      <strong>26 / 26 under 0.1</strong>
+                    </article>
+                  </div>
+                  <article className="sheet-chip">
+                    <span>Worked toy example, why bigger pp can still be better</span>
+                    <strong style={{ fontSize: "1rem", lineHeight: "1.6", fontWeight: 600 }}>
+                      Suppose Method A gives +0.8pp but still leaves treated patients much sicker than controls, for
+                      example average baseline severity 9.5 vs 6.8. Suppose Method B gives +2.7pp but makes the groups
+                      truly comparable, for example 9.1 vs 9.0. Method B&apos;s number is larger, but it is based on a
+                      fairer comparison, so it is more believable.
+                    </strong>
+                  </article>
+                  <p className="viz-caption">
+                    For the paper, this is exactly why `M4` matters: not because `2.7pp` is numerically small, but
+                    because `M4` both improves balance strongly on real data and reduces bias strongly in the
+                    semi-synthetic experiments.
+                  </p>
+                </div>
               </div>
               <div className="viz-card viz-card--chart">
                 <div className="viz-card__toolbar">
@@ -1172,11 +1541,11 @@ export default function App() {
           </StepShell>
 
           <StepShell
-            id="step-7"
+            id="step-8"
             kicker="Steps 16 to 18"
             title="Semi-synthetic experiments ask which method finds the truth when the truth is known"
-            visible={isVisible("step-7")}
-            current={activeStep === "step-7"}
+            visible={isVisible("step-8")}
+            current={activeStep === "step-8"}
           >
             <StepMap
               items={[
@@ -1209,11 +1578,11 @@ export default function App() {
           </StepShell>
 
           <StepShell
-            id="step-8"
+            id="step-9"
             kicker="Conclusion"
             title="The paper’s claim is narrow, practical, and useful"
-            visible={isVisible("step-8")}
-            current={activeStep === "step-8"}
+            visible={isVisible("step-9")}
+            current={activeStep === "step-9"}
             final
           >
             <StepLedger

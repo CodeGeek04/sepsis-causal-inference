@@ -421,6 +421,11 @@ input {
   box-shadow: 0 8px 20px color-mix(in oklab, var(--ink) 8%, transparent);
 }
 
+.segmented-control--wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
 .compare-viz {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -753,6 +758,16 @@ input {
   margin-top: 1rem;
 }
 
+.hamming-summary-card {
+  margin-top: 1.1rem;
+  padding: 1rem 1.05rem;
+}
+
+.hamming-summary-card strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
 .lab-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -789,6 +804,152 @@ input {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--teal), var(--gold));
+}
+
+.hamming-lab {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.hamming-lab__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.hamming-score-card {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.9rem 0.95rem;
+  border-radius: 20px;
+  border: 1px solid color-mix(in oklab, var(--ink) 10%, transparent);
+  background: color-mix(in oklab, var(--paper) 88%, white);
+  transition:
+    transform 220ms var(--ease-out-quart),
+    border-color 220ms var(--ease-out-quart),
+    background-color 220ms var(--ease-out-quart);
+}
+
+.hamming-score-card.is-selected {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--teal) 40%, transparent);
+}
+
+.hamming-score-card.is-best {
+  background: color-mix(in oklab, var(--teal-soft) 56%, white);
+}
+
+.hamming-score-card span,
+.hamming-profile__eyebrow,
+.hamming-pill span,
+.hamming-row span,
+.hamming-score-card small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.hamming-score-card strong {
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.hamming-lab__columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.hamming-profile {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  border-radius: 22px;
+  border: 1px solid color-mix(in oklab, var(--ink) 10%, transparent);
+  background: color-mix(in oklab, var(--paper) 88%, white);
+}
+
+.hamming-profile h3 {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 1.1rem;
+}
+
+.hamming-profile h3 small {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.hamming-profile p {
+  margin: 0;
+}
+
+.hamming-pill-grid {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.hamming-pill {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in oklab, var(--ink) 9%, transparent);
+}
+
+.hamming-pill.is-match {
+  background: color-mix(in oklab, var(--teal-soft) 44%, white);
+}
+
+.hamming-pill.is-mismatch {
+  background: color-mix(in oklab, var(--rust-soft) 46%, white);
+  border-color: color-mix(in oklab, var(--rust) 26%, transparent);
+}
+
+.hamming-pill strong {
+  font-size: 0.96rem;
+  line-height: 1.45;
+}
+
+.hamming-table {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.hamming-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.8rem 0.9rem;
+  border-radius: 18px;
+  border: 1px solid color-mix(in oklab, var(--ink) 9%, transparent);
+}
+
+.hamming-row.is-match {
+  background: color-mix(in oklab, var(--teal-soft) 38%, white);
+}
+
+.hamming-row.is-mismatch {
+  background: color-mix(in oklab, var(--rust-soft) 38%, white);
+  border-color: color-mix(in oklab, var(--rust) 22%, transparent);
+}
+
+.hamming-row strong {
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.hamming-row em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 svg {
@@ -972,7 +1133,9 @@ svg {
   .step-ledger,
   .lab-grid,
   .two-up,
-  .two-up--dense {
+  .two-up--dense,
+  .hamming-lab__columns,
+  .hamming-lab__summary {
     grid-template-columns: 1fr;
   }
 
@@ -992,6 +1155,10 @@ svg {
 
   .timeline-marker--edge-right {
     transform: translateX(-88%);
+  }
+
+  .hamming-row {
+    grid-template-columns: 1fr;
   }
 }
 
